@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diplômopoly - Le Jeu de l'Enseignement Supérieur</title>
+    
+    <!-- Tailwind CSS pour le style rapide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Styles personnalisés -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Roboto+Mono:wght@400;700&family=Rubik:wght@400;700;900&display=swap');
+
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: #f4f1ea; /* Couleur papier vintage */
+        }
+        
+        .font-handwriting {
+            font-family: 'Patrick Hand', cursive;
+        }
+
+        .retro-shadow {
+            box-shadow: 8px 8px 0px 0px rgba(0,0,0,1);
+        }
+        .retro-shadow-lg {
+            box-shadow: 12px 12px 0px 0px rgba(0,0,0,1);
+        }
+        .retro-shadow-xl {
+            box-shadow: 20px 20px 0px 0px rgba(0,0,0,1);
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        /* Animation personnalisée pour le jeton */
+        @keyframes bounce-token {
+            0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+            50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+        }
+        .animate-token {
+            animation: bounce-token 1s infinite;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-900 flex flex-col items-center justify-center p-4">
+
+    <!-- ÉCRAN DE DÉMARRAGE -->
+    <div id="start-screen" class="fixed inset-0 z-50 bg-[#f4f1ea] flex flex-col items-center justify-center">
+        <div class="max-w-md w-full border-4 border-black p-8 bg-white retro-shadow text-center mx-4">
+            <h1 class="text-4xl font-black text-red-600 mb-6 tracking-wider uppercase" style="text-shadow: 2px 2px 0px #000;">Diplômopoly</h1>
+            <p class="mb-6 font-medium text-lg">Bienvenue dans le dédale de l'enseignement supérieur !</p>
+            <input type="text" id="player-name-input" placeholder="Votre prénom" class="w-full border-2 border-black p-3 mb-4 text-xl font-bold bg-yellow-50 focus:outline-none focus:bg-yellow-100">
+            <button onclick="startGame()" class="w-full bg-blue-600 text-white font-bold py-3 px-6 border-2 border-black hover:bg-blue-500 hover:translate-x-1 hover:translate-y-1 hover:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
+                COMMENCER LE PARCOURS
+            </button>
+        </div>
+    </div>
+
+    <!-- ZONE DE JEU (Masquée au début) -->
+    <div id="game-container" class="hidden flex-col lg:flex-row gap-8 items-start w-full max-w-6xl mx-auto">
+        
+        <!-- PLATEAU (Gauche) -->
+        <div class="flex-1 w-full flex justify-center">
+            <div id="board" class="relative board-grid w-full max-w-[600px] aspect-square bg-black border-4 border-black p-1 shadow-2xl">
+                <!-- Les cases seront générées ici par JS -->
+                
+                <!-- CENTRE DU PLATEAU -->
+                <div class="col-start-2 col-end-7 row-start-2 row-end-7 bg-[#f4f1ea] flex flex-col items-center justify-center border-2 border-black relative overflow-hidden p-4 text-center">
+                    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(circle,_black_1px,_transparent_1px)] bg-[length:20px_20px]"></div>
+                    
+                    <h1 id="game-title" class="text-4xl md:text-5xl font-black text-red-600 tracking-widest uppercase transform -rotate-6 mb-4 z-10 transition-all duration-500" style="text-shadow: 3px 3px 0px #000;">
+                        Diplômopoly
+                    </h1>
+                    
+                    <!-- BOUTON & DÉ (Visibles en jeu) -->
+                    <div id="controls-area" class="z-20 transition-all duration-500">
+                        <button id="btn-roll" onclick="rollDice()" class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-red-600 border-2 border-black font-mono hover:bg-red-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1">
+                            <i data-lucide="dice-5" class="mr-2"></i> LANCER LE DÉ
+                        </button>
+
+                        <div id="dice-display" class="hidden text-6xl font-black text-blue-600 animate-pulse border-4 border-blue-600 p-4 rounded-xl bg-white rotate-12 mx-auto w-24 h-24 flex items-center justify-center">
+                            1
+                        </div>
+                    </div>
+
+                    <!-- MESSAGE DE VICTOIRE (Caché au début) -->
+                    <div id="center-win-msg" class="hidden z-30 flex-col items-center justify-center absolute inset-0 bg-white/95 p-6 animate-in zoom-in duration-500">
+                        <i data-lucide="award" class="w-16 h-16 text-yellow-500 mb-4 animate-bounce"></i>
+                        <h2 class="text-3xl font-black text-red-600 mb-4 uppercase">Bravo ! <br>Vous avez gagné !</h2>
+                        <p class="text-lg font-serif font-bold text-gray-800 leading-relaxed border-t-2 border-b-2 border-black py-4">
+                            Votre diplôme prouve vos connaissances et bénéficie d'une solide reconnaissance officielle de l'État.
+                        </p>
+                        <div id="win-mentions" class="text-blue-600 font-bold font-mono my-2 text-xl hidden">
+                            <!-- Mentions affichées ici -->
+                        </div>
+                        <button onclick="location.reload()" class="mt-6 bg-blue-600 text-white font-bold py-2 px-6 border-2 border-black hover:bg-blue-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            REJOUER
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLEAU DE BORD (Droite) -->
+        <div class="w-full lg:w-80 shrink-0">
+            <div class="bg-[#fff9c4] border-4 border-black p-4 retro-shadow sticky top-4">
+                <h2 class="text-2xl font-black border-b-4 border-black pb-1 mb-2 text-center uppercase tracking-wider">
+                    Tableau de Diplôme
+                </h2>
+                <!-- Règle du jeu -->
+                <p class="text-xs font-bold text-center mb-6 text-gray-700 italic leading-tight px-1">
+                    POUR GAGNER : Collectez tous les tampons (RNCP, Visa et Grade) et 10 crédits ECTS pour obtenir votre diplôme final !
+                </p>
+                
+                <div class="mb-6">
+                    <label class="text-xs font-bold uppercase text-gray-500">Étudiant</label>
+                    <div id="display-name" class="text-2xl font-handwriting font-bold text-blue-800 transform -rotate-1 truncate">
+                        Joueur
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="text-xs font-bold uppercase text-gray-500 flex justify-between">
+                        <span>Crédits ECTS</span>
+                        <span>Obj: 10</span>
+                    </label>
+                    <div class="h-6 w-full bg-white border-2 border-black mt-1 relative">
+                        <div id="ects-bar" class="h-full bg-green-500 transition-all duration-500 w-0"></div>
+                    </div>
+                    <div class="flex justify-between items-start mt-1">
+                        <div id="mentions-display" class="text-xs font-bold text-red-600 hidden">
+                            + <span id="mentions-count">0</span> Mention(s)
+                        </div>
+                        <div id="ects-text" class="text-right font-mono font-bold ml-auto">0 / 10</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Badge RNCP -->
+                    <div id="badge-rncp" class="relative h-24 border-2 border-black flex flex-col items-center justify-center bg-gray-100 opacity-50 grayscale transition-all duration-500">
+                        <span class="font-black text-xl text-center leading-none">Titre<br>RNCP</span>
+                        <span class="mark-check hidden absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full border-2 border-white flex items-center justify-center text-white font-bold animate-pulse">✓</span>
+                        <span class="mark-qm absolute inset-0 flex items-center justify-center text-4xl font-black text-gray-300 pointer-events-none">?</span>
+                    </div>
+
+                    <!-- Badge VISA -->
+                    <div id="badge-visa" class="relative h-24 border-2 border-black flex flex-col items-center justify-center bg-gray-100 opacity-50 grayscale transition-all duration-500">
+                        <span class="font-black text-xl">VISA</span>
+                        <span class="mark-check hidden absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full border-2 border-white flex items-center justify-center text-white font-bold animate-pulse">✓</span>
+                        <span class="mark-qm absolute inset-0 flex items-center justify-center text-4xl font-black text-gray-300 pointer-events-none">?</span>
+                    </div>
+
+                    <!-- Badge GRADE -->
+                    <div id="badge-grade" class="relative h-24 border-2 border-black flex flex-col items-center justify-center bg-gray-100 opacity-50 grayscale transition-all duration-500">
+                        <span class="font-black text-xl">GRADE</span>
+                        <span class="mark-check hidden absolute -top-3 -right-3 w-8 h-8 bg-red-600 rounded-full border-2 border-white flex items-center justify-center text-white font-bold animate-pulse">✓</span>
+                        <span class="mark-qm absolute inset-0 flex items-center justify-center text-4xl font-black text-gray-300 pointer-events-none">?</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL QUESTION -->
+    <div id="modal-question" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white max-w-lg w-full border-4 border-black retro-shadow-lg p-6 fade-in">
+            <div class="flex justify-between items-center mb-6 border-b-2 border-gray-200 pb-4">
+                <h3 class="text-xl font-bold uppercase text-gray-700">Question de cours</h3>
+                <span id="q-id" class="bg-black text-white px-2 py-1 font-mono font-bold text-sm">#1</span>
+            </div>
+            <p id="q-text" class="text-xl font-medium mb-8 text-center font-serif">...</p>
+            <div id="q-options" class="space-y-3">
+                <!-- Boutons générés par JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MESSAGE (Reward/Error) -->
+    <div id="modal-message" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div id="msg-box" class="max-w-md w-full border-4 border-black retro-shadow-lg p-8 text-center fade-in bg-white">
+            <div id="msg-icon" class="mx-auto mb-4 flex justify-center"></div>
+            <h3 id="msg-title" class="text-2xl font-black mb-2">Titre</h3>
+            <p id="msg-body" class="text-lg mb-6">Message</p>
+            <button onclick="closeMessageModal()" class="bg-black text-white font-bold py-3 px-8 text-lg hover:bg-gray-800 transition-colors">CONTINUER</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DONNÉES DU JEU ---
+        // 120 Questions (30 par thème)
+        
+        const QUESTIONS_DB = {
+            francais: [
+                { id: 1, text: "Quel est le participe passé du verbe 'moudre' ?", options: ["Moulu", "Moudru", "Moussu"], correctIndex: 0 },
+                { id: 2, text: "Qui a écrit 'Les Misérables' ?", options: ["Émile Zola", "Victor Hugo", "Gustave Flaubert"], correctIndex: 1 },
+                { id: 3, text: "Dans la phrase 'Je les ai vus', 'les' est un :", options: ["COD", "COI", "Sujet"], correctIndex: 0 },
+                { id: 4, text: "Quelle figure de style consiste à exagérer ?", options: ["L'euphémisme", "L'hyperbole", "La litote"], correctIndex: 1 },
+                { id: 5, text: "Lequel de ces mots est féminin ?", options: ["Pétale", "Orbe", "Haltère"], correctIndex: 1 },
+                { id: 6, text: "Le contraire de 'altruiste' est :", options: ["Généreux", "Égoïste", "Optimiste"], correctIndex: 1 },
+                { id: 7, text: "Conjugaison : 'Il faut que nous...' (faire)", options: ["faisons", "fassions", "fesions"], correctIndex: 1 },
+                { id: 8, text: "Quel auteur appartient au mouvement Romantique ?", options: ["Chateaubriand", "Sartre", "Racine"], correctIndex: 0 },
+                { id: 9, text: "Que signifie 'Avoir une épée de Damoclès au-dessus de la tête' ?", options: ["Avoir de la chance", "Être en danger constant", "Être le chef"], correctIndex: 1 },
+                { id: 10, text: "Quel est le pluriel de 'chou-fleur' ?", options: ["Choux-fleur", "Choux-fleurs", "Chou-fleurs"], correctIndex: 1 },
+                { id: 11, text: "Qui a écrit 'L'Étranger' ?", options: ["Albert Camus", "Jean-Paul Sartre", "Marcel Proust"], correctIndex: 0 },
+                { id: 12, text: "Quel est le synonyme de 'éphémère' ?", options: ["Durable", "Passager", "Éternel"], correctIndex: 1 },
+                { id: 13, text: "Comment s'appelle l'auteur des 'Fables' ?", options: ["Molière", "La Fontaine", "Corneille"], correctIndex: 1 },
+                { id: 14, text: "Le mot 'courir' est un verbe du :", options: ["1er groupe", "2ème groupe", "3ème groupe"], correctIndex: 2 },
+                { id: 15, text: "Quel mot est un adverbe ?", options: ["Rapide", "Rapidement", "Rapidité"], correctIndex: 1 },
+                { id: 16, text: "Lequel de ces mots est correctement orthographié ?", options: ["Acceuil", "Accueil", "Aqueuil"], correctIndex: 1 },
+                { id: 17, text: "Que signifie le préfixe 'bio-' ?", options: ["Deux", "Vie", "Terre"], correctIndex: 1 },
+                { id: 18, text: "Quel est le contraire de 'avare' ?", options: ["Généreux", "Triste", "Pauvre"], correctIndex: 0 },
+                { id: 19, text: "Complétez : 'Elles se sont ___ les mains.'", options: ["lavé", "lavées", "laver"], correctIndex: 1 },
+                { id: 20, text: "Quel est le genre du mot 'amour' au pluriel ?", options: ["Masculin", "Féminin", "Neutre"], correctIndex: 1 },
+                { id: 21, text: "Qui est l'auteur de 'Madame Bovary' ?", options: ["Stendhal", "Flaubert", "Balzac"], correctIndex: 1 },
+                { id: 22, text: "Quel est le participe passé de 'naître' ?", options: ["Né", "Nu", "Ni"], correctIndex: 0 },
+                { id: 23, text: "Dans quel siècle vivait Molière ?", options: ["XVIe", "XVIIe", "XVIIIe"], correctIndex: 1 },
+                { id: 24, text: "Que signifie 'posthume' ?", options: ["Après la mort", "Avant la guerre", "Très célèbre"], correctIndex: 0 },
+                { id: 25, text: "Quel est le pluriel de 'cheval' ?", options: ["Chevals", "Chevaux", "Chevaus"], correctIndex: 1 },
+                { id: 26, text: "Le contraire de 'abstrait' est :", options: ["Concret", "Difficile", "Absolu"], correctIndex: 0 },
+                { id: 27, text: "Quelle est la nature du mot 'mais' ?", options: ["Verbe", "Conjonction", "Nom"], correctIndex: 1 },
+                { id: 28, text: "Complétez : 'C'est la maison ___ je t'ai parlé.'", options: ["que", "dont", "où"], correctIndex: 1 },
+                { id: 29, text: "Qui a écrit 'Les Fleurs du mal' ?", options: ["Verlaine", "Rimbaud", "Baudelaire"], correctIndex: 2 },
+                { id: 30, text: "Le mot 'gentil' au féminin s'écrit :", options: ["Gentile", "Gentille", "Gentil"], correctIndex: 1 }
+            ],
+            calcul: [
+                { id: 31, text: "Combien font 7 x 8 ?", options: ["54", "56", "58"], correctIndex: 1 },
+                { id: 32, text: "Quel est le quart de 120 ?", options: ["30", "40", "25"], correctIndex: 0 },
+                { id: 33, text: "15% de 200 est égal à :", options: ["15", "20", "30"], correctIndex: 2 },
+                { id: 34, text: "Résoudre : 2x + 4 = 10", options: ["x = 2", "x = 3", "x = 4"], correctIndex: 1 },
+                { id: 35, text: "Combien de côtés a un hexagone ?", options: ["5", "6", "8"], correctIndex: 1 },
+                { id: 36, text: "Quelle est la racine carrée de 81 ?", options: ["8", "9", "7"], correctIndex: 1 },
+                { id: 37, text: "Convertir 1h30 en minutes :", options: ["80 min", "90 min", "100 min"], correctIndex: 1 },
+                { id: 38, text: "Si un article coûte 50€ et est soldé à -20%, quel est le prix ?", options: ["30€", "40€", "45€"], correctIndex: 1 },
+                { id: 39, text: "Le périmètre d'un carré de côté 5cm est :", options: ["20cm", "25cm", "10cm"], correctIndex: 0 },
+                { id: 40, text: "Combien font 100 divisé par 4 ?", options: ["20", "25", "10"], correctIndex: 1 },
+                { id: 41, text: "Combien font 6 x 9 ?", options: ["52", "54", "56"], correctIndex: 1 },
+                { id: 42, text: "La moitié de 70 est :", options: ["30", "35", "40"], correctIndex: 1 },
+                { id: 43, text: "Combien font 1000 - 450 ?", options: ["550", "650", "450"], correctIndex: 0 },
+                { id: 44, text: "Quel est le double de 15 ?", options: ["25", "30", "35"], correctIndex: 1 },
+                { id: 45, text: "Combien de grammes dans 1 kg ?", options: ["100", "1000", "10000"], correctIndex: 1 },
+                { id: 46, text: "Quel nombre suit 99 ?", options: ["100", "101", "110"], correctIndex: 0 },
+                { id: 47, text: "Combien font 3 au carré (3²) ?", options: ["6", "9", "12"], correctIndex: 1 },
+                { id: 48, text: "Quel est le résultat de 10 + 5 x 2 ?", options: ["30", "20", "25"], correctIndex: 1 },
+                { id: 49, text: "Combien font 50 divisé par 5 ?", options: ["5", "10", "15"], correctIndex: 1 },
+                { id: 50, text: "Un triangle a combien de côtés ?", options: ["2", "3", "4"], correctIndex: 1 },
+                { id: 51, text: "Quel est le tiers de 30 ?", options: ["5", "10", "15"], correctIndex: 1 },
+                { id: 52, text: "Combien font 25 + 35 ?", options: ["50", "60", "70"], correctIndex: 1 },
+                { id: 53, text: "Si j'ai 3 pommes et j'en mange 1, il reste ?", options: ["1", "2", "3"], correctIndex: 1 },
+                { id: 54, text: "Combien de centimètres dans 1 mètre ?", options: ["10", "100", "1000"], correctIndex: 1 },
+                { id: 55, text: "Quel est le nombre pair ?", options: ["11", "12", "13"], correctIndex: 1 },
+                { id: 56, text: "10% de 50, c'est :", options: ["5", "10", "15"], correctIndex: 0 },
+                { id: 57, text: "Combien font 8 x 8 ?", options: ["62", "63", "64"], correctIndex: 2 },
+                { id: 58, text: "Ajouter 15 minutes à 10h45 donne :", options: ["10h50", "11h00", "11h15"], correctIndex: 1 },
+                { id: 59, text: "Quel est le chiffre des unités dans 123 ?", options: ["1", "2", "3"], correctIndex: 2 },
+                { id: 60, text: "Combien font 200 x 2 ?", options: ["300", "400", "500"], correctIndex: 1 }
+            ],
+            histgeo: [
+                { id: 61, text: "En quelle année a eu lieu la Révolution française ?", options: ["1789", "1799", "1815"], correctIndex: 0 },
+                { id: 62, text: "Quelle est la capitale de l'Allemagne ?", options: ["Munich", "Berlin", "Hambourg"], correctIndex: 1 },
+                { id: 63, text: "Qui était le Roi Soleil ?", options: ["Louis XIII", "Louis XIV", "Louis XVI"], correctIndex: 1 },
+                { id: 64, text: "Quel fleuve traverse Paris ?", options: ["La Loire", "Le Rhône", "La Seine"], correctIndex: 2 },
+                { id: 65, text: "Date de la fin de la Seconde Guerre mondiale en Europe :", options: ["1944", "1945", "1946"], correctIndex: 1 },
+                { id: 66, text: "Sur quel continent se trouve le Brésil ?", options: ["Afrique", "Amérique du Sud", "Asie"], correctIndex: 1 },
+                { id: 67, text: "Qui a découvert l'Amérique en 1492 ?", options: ["Magellan", "Christophe Colomb", "Vasco de Gama"], correctIndex: 1 },
+                { id: 68, text: "Quel est le plus grand océan du monde ?", options: ["Atlantique", "Pacifique", "Indien"], correctIndex: 1 },
+                { id: 69, text: "En France, combien de temps dure un mandat présidentiel ?", options: ["4 ans", "5 ans", "7 ans"], correctIndex: 1 },
+                { id: 70, text: "Quelle est la devise de la France ?", options: ["Liberté, Égalité, Fraternité", "Travail, Famille, Patrie", "Honneur et Patrie"], correctIndex: 0 },
+                { id: 71, text: "Quelle est la capitale de l'Italie ?", options: ["Milan", "Rome", "Venise"], correctIndex: 1 },
+                { id: 72, text: "Qui a été le premier empereur des Français ?", options: ["Napoléon Ier", "Charlemagne", "Louis XIV"], correctIndex: 0 },
+                { id: 73, text: "Quel est le plus haut sommet d'Europe ?", options: ["Mont Blanc", "Everest", "Kilimandjaro"], correctIndex: 0 },
+                { id: 74, text: "En quelle année l'homme a-t-il marché sur la Lune ?", options: ["1959", "1969", "1979"], correctIndex: 1 },
+                { id: 75, text: "Quelle ville est surnommée la 'Ville Lumière' ?", options: ["Londres", "New York", "Paris"], correctIndex: 2 },
+                { id: 76, text: "Quel pays a la forme d'une botte ?", options: ["L'Espagne", "La Grèce", "L'Italie"], correctIndex: 2 },
+                { id: 77, text: "Qui était Vercingétorix ?", options: ["Un Romain", "Un Gaulois", "Un Grec"], correctIndex: 1 },
+                { id: 78, text: "Quelle est la capitale de l'Espagne ?", options: ["Barcelone", "Madrid", "Séville"], correctIndex: 1 },
+                { id: 79, text: "Quelle guerre a eu lieu entre 1914 et 1918 ?", options: ["La 1ère Guerre mondiale", "La 2nde Guerre mondiale", "La Guerre de Cent Ans"], correctIndex: 0 },
+                { id: 80, text: "Où se trouve la Tour de Pise ?", options: ["En France", "En Italie", "En Espagne"], correctIndex: 1 },
+                { id: 81, text: "Quel fleuve est le plus long de France ?", options: ["La Seine", "La Loire", "Le Rhône"], correctIndex: 1 },
+                { id: 82, text: "Qui a peint la Joconde ?", options: ["Picasso", "Léonard de Vinci", "Van Gogh"], correctIndex: 1 },
+                { id: 83, text: "Quelle est la monnaie du Royaume-Uni ?", options: ["L'Euro", "Le Dollar", "La Livre Sterling"], correctIndex: 2 },
+                { id: 84, text: "Sur quel continent se trouve l'Égypte ?", options: ["Asie", "Afrique", "Europe"], correctIndex: 1 },
+                { id: 85, text: "Quelle est la capitale des États-Unis ?", options: ["New York", "Washington D.C.", "Los Angeles"], correctIndex: 1 },
+                { id: 86, text: "Jeanne d'Arc a combattu les :", options: ["Anglais", "Allemands", "Espagnols"], correctIndex: 0 },
+                { id: 87, text: "Quel est le plus grand pays du monde ?", options: ["Chine", "Russie", "États-Unis"], correctIndex: 1 },
+                { id: 88, text: "Où se trouve la Statue de la Liberté ?", options: ["Paris", "Londres", "New York"], correctIndex: 2 },
+                { id: 89, text: "Qui a dit 'Je pense, donc je suis' ?", options: ["Descartes", "Platon", "Voltaire"], correctIndex: 0 },
+                { id: 90, text: "La Révolution Russe a eu lieu en :", options: ["1789", "1917", "1945"], correctIndex: 1 }
+            ],
+            anglais: [
+                { id: 91, text: "Traduire 'Apple' :", options: ["Poire", "Pomme", "Banane"], correctIndex: 1 },
+                { id: 92, text: "Conjuguer 'To be' au présent (I) :", options: ["I is", "I are", "I am"], correctIndex: 2 },
+                { id: 93, text: "Comment dit-on 'Voiture' ?", options: ["Cart", "Car", "Bus"], correctIndex: 1 },
+                { id: 94, text: "Le contraire de 'Hot' est :", options: ["Cold", "Warm", "Freeze"], correctIndex: 0 },
+                { id: 95, text: "Quel jour est 'Sunday' ?", options: ["Samedi", "Lundi", "Dimanche"], correctIndex: 2 },
+                { id: 96, text: "Traduire : 'The cat is on the table'", options: ["Le chat est sous la table", "Le chat est sur la table", "Le chat est la table"], correctIndex: 1 },
+                { id: 97, text: "Pluriel de 'Child' :", options: ["Childs", "Children", "Childes"], correctIndex: 1 },
+                { id: 98, text: "Comment dit-on 'Rouge' ?", options: ["Red", "Green", "Blue"], correctIndex: 0 },
+                { id: 99, text: "Prétérit de 'Go' :", options: ["Goed", "Went", "Gone"], correctIndex: 1 },
+                { id: 100, text: "Traduire 'Thank you' :", options: ["Bonjour", "S'il vous plaît", "Merci"], correctIndex: 2 },
+                { id: 101, text: "Comment dit-on 'Chien' ?", options: ["Cat", "Dog", "Bird"], correctIndex: 1 },
+                { id: 102, text: "Traduire 'Blue' :", options: ["Vert", "Rouge", "Bleu"], correctIndex: 2 },
+                { id: 103, text: "Quel nombre est 'Ten' ?", options: ["5", "10", "20"], correctIndex: 1 },
+                { id: 104, text: "Comment dit-on 'Bonjour' (matin) ?", options: ["Good night", "Good evening", "Good morning"], correctIndex: 2 },
+                { id: 105, text: "Le contraire de 'Big' est :", options: ["Small", "Large", "Tall"], correctIndex: 0 },
+                { id: 106, text: "Traduire 'House' :", options: ["Maison", "Cheval", "Souris"], correctIndex: 0 },
+                { id: 107, text: "Comment dit-on 'Mère' ?", options: ["Father", "Sister", "Mother"], correctIndex: 2 },
+                { id: 108, text: "Quel mois est 'January' ?", options: ["Janvier", "Juin", "Juillet"], correctIndex: 0 },
+                { id: 109, text: "Traduire 'I love you' :", options: ["Je te déteste", "Je t'aime", "Je te vois"], correctIndex: 1 },
+                { id: 110, text: "Comment dit-on 'Livre' ?", options: ["Book", "Pen", "Table"], correctIndex: 0 },
+                { id: 111, text: "Traduire 'School' :", options: ["École", "Piscine", "Magasin"], correctIndex: 0 },
+                { id: 112, text: "Quel animal est un 'Snake' ?", options: ["Un serpent", "Un escargot", "Une araignée"], correctIndex: 0 },
+                { id: 113, text: "Comment dit-on 'Jaune' ?", options: ["Yellow", "Pink", "Purple"], correctIndex: 0 },
+                { id: 114, text: "Traduire 'Water' :", options: ["Vin", "Eau", "Lait"], correctIndex: 1 },
+                { id: 115, text: "Le verbe 'To eat' signifie :", options: ["Boire", "Dormir", "Manger"], correctIndex: 2 },
+                { id: 116, text: "Comment dit-on 'Ami' ?", options: ["Enemy", "Friend", "Neighbor"], correctIndex: 1 },
+                { id: 117, text: "Quel jour est 'Friday' ?", options: ["Jeudi", "Vendredi", "Samedi"], correctIndex: 1 },
+                { id: 118, text: "Traduire 'Happy' :", options: ["Triste", "Heureux", "Colère"], correctIndex: 1 },
+                { id: 119, text: "Comment dit-on 'Oiseau' ?", options: ["Fish", "Bird", "Mouse"], correctIndex: 1 },
+                { id: 120, text: "Traduire 'Good bye' :", options: ["Au revoir", "Bonjour", "Merci"], correctIndex: 0 }
+            ]
+        };
+
+        const SPECIAL_SQUARES = [2, 8, 14, 20];
+        
+        // --- ÉTAT DU JEU ---
+        let gameState = {
+            status: 'START', // START, IDLE, MOVING, QUESTION, WIN
+            turnCount: 0, // Nouveau compteur de tours
+            player: {
+                name: '',
+                position: 0,
+                ects: 0,
+                mentions: 0, // Nouveau compteur
+                inventory: { rncp: false, visa: false, grade: false }
+            },
+            currentQuestion: null,
+            usedQuestionIds: [],
+            lastDiplomaTurn: 0 // Track turn of last diploma
+        };
+
+        // --- FONCTIONS UTILITAIRES ---
+
+        function getTheme(index) {
+            if (index >= 0 && index <= 5) return 'francais';
+            if (index >= 6 && index <= 11) return 'calcul';
+            if (index >= 12 && index <= 17) return 'histgeo';
+            return 'anglais';
+        }
+
+        function getThemeConfig(theme) {
+            switch(theme) {
+                case 'francais': return { label: 'Français', color: 'bg-red-100 border-red-800 text-red-900', icon: 'book-open' };
+                case 'calcul': return { label: 'Calcul', color: 'bg-blue-100 border-blue-800 text-blue-900', icon: 'calculator' };
+                case 'histgeo': return { label: 'Hist-Géo', color: 'bg-yellow-100 border-yellow-800 text-yellow-900', icon: 'globe' };
+                case 'anglais': return { label: 'Anglais', color: 'bg-green-100 border-green-800 text-green-900', icon: 'message-circle' };
+                default: return { label: '', color: 'bg-white', icon: '' };
+            }
+        }
+
+        // --- MOTEUR DU JEU ---
+
+        function initBoard() {
+            const board = document.getElementById('board');
+            // Générer les 24 cases (0-23)
+            for (let i = 0; i < 24; i++) {
+                const div = document.createElement('div');
+                div.id = `square-${i}`;
+                
+                // Calcul Grid CSS
+                let gridStyle = '';
+                if (i < 6) { // BAS
+                    gridStyle = `grid-column: ${7 - (i + 1)}; grid-row: 7;`;
+                } else if (i < 12) { // GAUCHE
+                    gridStyle = `grid-column: 1; grid-row: ${7 - (i - 6 + 1)};`;
+                } else if (i < 18) { // HAUT
+                    gridStyle = `grid-column: ${(i - 12) + 2}; grid-row: 1;`;
+                } else { // DROITE
+                    gridStyle = `grid-column: 7; grid-row: ${(i - 18) + 2};`;
+                }
+                
+                div.style = gridStyle;
+                div.className = `relative border-2 border-black flex flex-col items-center justify-center p-1 text-center text-xs font-bold transition-all z-10`;
+                
+                const isSpecial = SPECIAL_SQUARES.includes(i);
+                const theme = getTheme(i);
+                const config = getThemeConfig(theme);
+
+                if (isSpecial) {
+                    div.classList.add('bg-purple-200', 'text-purple-900');
+                    div.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <i data-lucide="graduation-cap" class="w-4 h-4 mb-1"></i>
+                            <span class="leading-tight text-[10px] uppercase">Niveau Diplôme</span>
+                        </div>
+                    `;
+                } else {
+                    div.className += ` ${config.color}`;
+                    div.innerHTML = `
+                        <span class="uppercase text-[9px] opacity-70 mb-1">${config.label}</span>
+                        <i data-lucide="${config.icon}" class="w-3.5 h-3.5"></i>
+                        <span class="mt-1 text-lg font-mono opacity-20 absolute select-none">${i+1}</span>
+                    `;
+                }
+
+                div.innerHTML += `
+                    <div id="player-token-${i}" class="hidden absolute inset-0 flex items-center justify-center">
+                       <div class="w-8 h-8 bg-red-600 rounded-full border-2 border-white shadow-lg animate-token flex items-center justify-center">
+                         <span class="text-white text-xs">Moi</span>
+                       </div>
+                    </div>
+                `;
+
+                board.appendChild(div);
+            }
+            lucide.createIcons();
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('player-name-input').value.trim();
+            if (!nameInput) return alert("Entrez un prénom !");
+
+            gameState.player.name = nameInput;
+            gameState.status = 'IDLE';
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            document.getElementById('game-container').classList.add('flex');
+            
+            updateUI();
+            updatePlayerPosition();
+        }
+
+        function updateUI() {
+            // Nom
+            document.getElementById('display-name').textContent = gameState.player.name;
+            
+            // ECTS
+            const ectsPct = Math.min((gameState.player.ects / 10) * 100, 100);
+            document.getElementById('ects-bar').style.width = `${ectsPct}%`;
+            document.getElementById('ects-text').textContent = `${gameState.player.ects} / 10`;
+
+            // Mentions
+            if (gameState.player.mentions > 0) {
+                document.getElementById('mentions-display').classList.remove('hidden');
+                document.getElementById('mentions-count').textContent = gameState.player.mentions;
+            }
+
+            // Badges
+            updateBadge('rncp', gameState.player.inventory.rncp, 'bg-orange-200');
+            updateBadge('visa', gameState.player.inventory.visa, 'bg-purple-200');
+            updateBadge('grade', gameState.player.inventory.grade, 'bg-blue-200');
+        }
+
+        function updateBadge(id, active, activeColor) {
+            const el = document.getElementById(`badge-${id}`);
+            
+            if (active) {
+                el.classList.remove('bg-gray-100', 'opacity-50', 'grayscale');
+                el.classList.add(activeColor);
+                el.querySelector('.mark-check').classList.remove('hidden');
+                el.querySelector('.mark-qm').classList.add('hidden');
+            }
+        }
+
+        function updatePlayerPosition() {
+            for (let i = 0; i < 24; i++) {
+                document.getElementById(`player-token-${i}`).classList.add('hidden');
+                document.getElementById(`square-${i}`).classList.remove('ring-4', 'ring-yellow-400', 'z-20');
+            }
+            const pos = gameState.player.position;
+            document.getElementById(`player-token-${pos}`).classList.remove('hidden');
+            document.getElementById(`square-${pos}`).classList.add('ring-4', 'ring-yellow-400', 'z-20');
+        }
+
+        function rollDice() {
+            if (gameState.status !== 'IDLE') return;
+            gameState.status = 'MOVING';
+            gameState.turnCount++; // Compter le tour
+            
+            const btnRoll = document.getElementById('btn-roll');
+            const diceDisplay = document.getElementById('dice-display');
+            
+            btnRoll.classList.add('hidden');
+            diceDisplay.classList.remove('hidden');
+
+            const hasAllStamps = gameState.player.inventory.rncp && 
+                                 gameState.player.inventory.visa && 
+                                 gameState.player.inventory.grade;
+
+            let rolls = 0;
+            const interval = setInterval(() => {
+                diceDisplay.textContent = Math.floor(Math.random() * 6) + 1;
+                rolls++;
+                if (rolls > 8) {
+                    clearInterval(interval);
+                    
+                    let finalValue = Math.floor(Math.random() * 6) + 1;
+                    const currentPos = gameState.player.position;
+                    
+                    const turnsSinceLastDiploma = gameState.turnCount - gameState.lastDiplomaTurn;
+                    let shouldAvoid = false;
+
+                    // 1. Global warmup (first 4 turns)
+                    if (gameState.turnCount <= 4) shouldAvoid = true;
+                    
+                    // 2. Cooldown between diplomas (if we obtained one recently)
+                    if (gameState.lastDiplomaTurn > 0 && turnsSinceLastDiploma < 3) shouldAvoid = true;
+                    
+                    // 3. Already have all stamps (no need to land there)
+                    if (hasAllStamps) shouldAvoid = true;
+
+                    // EXECUTE LOGIC
+                    if (shouldAvoid) {
+                        // AVOIDANCE STRATEGY
+                        let dest = (currentPos + finalValue) % 24;
+                        let safeAttempts = 0;
+                        while (SPECIAL_SQUARES.includes(dest) && safeAttempts < 20) {
+                            finalValue = Math.floor(Math.random() * 6) + 1;
+                            dest = (currentPos + finalValue) % 24;
+                            safeAttempts++;
+                        }
+                        // Fallback
+                        if (SPECIAL_SQUARES.includes(dest)) {
+                             finalValue = (finalValue % 6) + 1;
+                        }
+                    } else {
+                        // HUNTING STRATEGY (seeking next diploma)
+                        // 50% chance to rig the dice
+                        if (Math.random() < 0.5) {
+                            const reachableSpecial = SPECIAL_SQUARES.map(sq => {
+                                let dist = sq - currentPos;
+                                if (dist <= 0) dist += 24;
+                                return dist;
+                            }).find(dist => dist >= 1 && dist <= 6);
+
+                            if (reachableSpecial) {
+                                finalValue = reachableSpecial;
+                            }
+                        }
+                    }
+
+                    diceDisplay.textContent = finalValue;
+                    movePlayer(finalValue);
+                }
+            }, 100);
+        }
+
+        function movePlayer(steps) {
+            let currentStep = 0;
+            const moveInterval = setInterval(() => {
+                currentStep++;
+                gameState.player.position = (gameState.player.position + 1) % 24;
+                updatePlayerPosition();
+
+                if (currentStep >= steps) {
+                    clearInterval(moveInterval);
+                    setTimeout(() => {
+                        document.getElementById('dice-display').classList.add('hidden');
+                        handleArrival();
+                    }, 500);
+                }
+            }, 300);
+        }
+
+        function handleArrival() {
+            const pos = gameState.player.position;
+            if (SPECIAL_SQUARES.includes(pos)) {
+                gameState.status = 'SPECIAL_REWARD';
+                triggerSpecialSquare();
+            } else {
+                gameState.status = 'QUESTION';
+                triggerQuestion(getTheme(pos));
+            }
+        }
+
+        function triggerQuestion(theme) {
+            const questions = QUESTIONS_DB[theme];
+            const available = questions.filter(q => !gameState.usedQuestionIds.includes(q.id));
+            
+            let selected;
+            if (available.length > 0) {
+                // Modification ici : Prendre au hasard parmi les disponibles
+                selected = available[Math.floor(Math.random() * available.length)];
+            } else {
+                // Si épuisé, prendre au hasard dans toutes les questions
+                selected = questions[Math.floor(Math.random() * questions.length)];
+            }
+            
+            gameState.usedQuestionIds.push(selected.id);
+            gameState.currentQuestion = selected;
+
+            document.getElementById('q-id').textContent = `#${selected.id}`;
+            document.getElementById('q-text').textContent = selected.text;
+            
+            const optionsContainer = document.getElementById('q-options');
+            optionsContainer.innerHTML = '';
+            
+            selected.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 border-2 border-gray-300 hover:border-black hover:bg-yellow-50 transition-colors font-medium text-lg flex items-center group";
+                btn.onclick = () => handleAnswer(idx);
+                btn.innerHTML = `
+                    <span class="w-8 h-8 rounded-full border-2 border-gray-400 group-hover:border-black flex items-center justify-center mr-3 font-mono text-sm text-gray-500 group-hover:text-black">
+                        ${String.fromCharCode(65 + idx)}
+                    </span>
+                    ${opt}
+                `;
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('modal-question').classList.remove('hidden');
+        }
+
+        function handleAnswer(idx) {
+            document.getElementById('modal-question').classList.add('hidden');
+            const isCorrect = idx === gameState.currentQuestion.correctIndex;
+            
+            if (isCorrect) {
+                if (gameState.player.ects < 10) {
+                    gameState.player.ects += 1;
+                    showMessage("Bonne réponse !", "Vous gagnez 1 crédit ECTS.", 'reward');
+                } else {
+                    // Si déjà à 10, on gagne une mention
+                    gameState.player.mentions += 1;
+                    showMessage("Score max atteint !", "Excellent ! Vous gagnez une Mention d'Excellence pour votre dossier.", 'reward');
+                }
+            } else {
+                showMessage("Mauvaise réponse...", `La bonne réponse était : ${gameState.currentQuestion.options[gameState.currentQuestion.correctIndex]}`, 'error');
+            }
+            
+            updateUI();
+        }
+
+        function triggerSpecialSquare() {
+            let msg = "";
+            gameState.lastDiplomaTurn = gameState.turnCount; // Enregistrement du tour
+
+            // LOGIQUE SÉQUENTIELLE
+            if (!gameState.player.inventory.rncp) {
+                gameState.player.inventory.rncp = true;
+                msg = "Bravo. Votre diplôme bénéficie d’un titre RNCP.";
+            } else if (!gameState.player.inventory.visa) {
+                gameState.player.inventory.visa = true;
+                msg = "Excellent ! le ministère accorde un visa à votre diplôme";
+            } else {
+                gameState.player.inventory.grade = true;
+                msg = "Parfait ! Le ministère accorde le grade de Master à votre diplôme";
+            }
+
+            updateUI();
+            showMessage("Case Niveau de Diplôme !", msg, 'reward');
+        }
+
+        function showMessage(title, body, type) {
+            const modal = document.getElementById('modal-message');
+            const box = document.getElementById('msg-box');
+            const iconContainer = document.getElementById('msg-icon');
+            
+            document.getElementById('msg-title').textContent = title;
+            document.getElementById('msg-body').textContent = body;
+
+            box.className = `max-w-md w-full border-4 border-black retro-shadow-lg p-8 text-center fade-in ${type === 'reward' ? 'bg-yellow-50' : (type === 'error' ? 'bg-red-50' : 'bg-white')}`;
+            
+            if (type === 'reward') {
+                iconContainer.innerHTML = '<i data-lucide="trophy" class="w-16 h-16 text-yellow-600"></i>';
+            } else if (type === 'error') {
+                iconContainer.innerHTML = '<div class="w-16 h-16 text-red-600 font-black text-5xl flex items-center justify-center">X</div>';
+            }
+            
+            lucide.createIcons();
+            modal.classList.remove('hidden');
+        }
+
+        function closeMessageModal() {
+            document.getElementById('modal-message').classList.add('hidden');
+            checkWin();
+        }
+
+        function checkWin() {
+            const { ects, inventory } = gameState.player;
+            if (ects >= 10 && inventory.rncp && inventory.visa && inventory.grade) {
+                triggerWinSequence();
+            } else {
+                gameState.status = 'IDLE';
+                document.getElementById('btn-roll').classList.remove('hidden');
+            }
+        }
+
+        function triggerWinSequence() {
+            gameState.status = 'WIN';
+            
+            document.getElementById('controls-area').classList.add('hidden');
+            document.getElementById('game-title').classList.add('scale-75', 'opacity-50'); 
+            
+            // Afficher mentions en fin de partie
+            if (gameState.player.mentions > 0) {
+                const mentionDiv = document.getElementById('win-mentions');
+                mentionDiv.textContent = `+ ${gameState.player.mentions} Mention(s) d'Excellence !`;
+                mentionDiv.classList.remove('hidden');
+            }
+
+            document.getElementById('center-win-msg').classList.remove('hidden');
+            document.getElementById('center-win-msg').classList.add('flex');
+            
+            lucide.createIcons();
+        }
+
+        window.onload = initBoard;
+
+    </script>
+</body>
+</html>
